@@ -4,11 +4,18 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import {FunctionUrlAuthType, HttpMethod} from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as path from "node:path";
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import {aws_ecr_assets} from "aws-cdk-lib";
 
 export class IvsSimpleStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    const dynamoDbTable = new dynamodb.Table(this, 'IvsSimpleTable', {
+      partitionKey: { name: 'arn', type: dynamodb.AttributeType.STRING },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+    });
 
     // Lambda function
     const lambdaFunction = new lambda.DockerImageFunction(this, 'IvsSimpleFunction', {
@@ -19,13 +26,15 @@ export class IvsSimpleStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       environment: {
         REGION: process.env.region || "",
+        TABLE_NAME: dynamoDbTable.tableName,
       },
       architecture: lambda.Architecture.ARM_64,
     });
 
+
     // Create a policy statement for IVS access
     const policy = new iam.PolicyStatement({
-      actions: ["ivs:*","cloudwatch:*"],
+      actions: ["ivs:*","cloudwatch:*","dynamodb:*","ivschat:*"],
       resources: ["*"]
     });
 
